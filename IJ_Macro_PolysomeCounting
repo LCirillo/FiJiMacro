@@ -1,0 +1,142 @@
+//This macro segments and counts the number of polysomes over time.
+//It has been tested and used with the polysome reporter developed by Pichon et al. 2016
+//Images can be any format recognized by Bioformats, but they must be 4D stacks
+
+  //Before starting create a folder where to save the outputs, the macro will request to 
+  //locate such a folder
+ 
+ run("Close All");
+
+// Get path to Save Data
+  Quantification = getDirectory("Quantification");
+  if (Quantification=="")
+      exit("No temp directory available");
+
+//Open the image
+ waitForUser("Open an Image");
+  imageTitle = getTitle();
+
+//Remove Extension
+  x = getTitle();
+  x = replace(x, ".tif", "");        
+  x = replace(x, ".tiff", "");      
+  x = replace(x, ".lif", "");      
+  x = replace(x, ".lsm", "");    
+  x = replace(x, ".czi", "");      
+  x = replace(x, ".nd2", "");
+  title = x;
+
+//Preliminary settings 
+ run("Set Measurements...", "area mean redirect=None decimal=3");
+ roiManager("reset");
+ run("Clear Results");
+ run("Select None");
+ selectWindow(imageTitle);          
+  
+ // Create folders
+  SUM = Quantification + "SUM" + File.separator;
+  File.makeDirectory(SUM);
+  if (!File.exists(SUM))
+      exit("Unable to create directory");
+  print("");
+  print(SUM);
+  
+  MAX = Quantification + "MAX" + File.separator;
+  File.makeDirectory(MAX);
+  if (!File.exists(MAX))
+      exit("Unable to create directory");
+  print("");
+  print(MAX);
+
+  Processed = Quantification + "Processed" + File.separator;
+  File.makeDirectory(Processed);
+  if (!File.exists(Processed))
+      exit("Unable to create directory");
+  print("");
+  print(Processed);
+
+  Polysomes = Quantification + "Polysomes" + File.separator;
+  File.makeDirectory(Polysomes);
+  if (!File.exists(Polysomes))
+      exit("Unable to create directory");
+  print("");
+  print(Polysomes);
+
+
+//Projections
+	run("Grays");
+	selectWindow(imageTitle); 
+	run("Z Project...", "projection=[Max Intensity] all");
+		//Saving the MAX
+		saveAs("Tiff", MAX + "MAX" + title + ".tiff");
+	MaxProj = getTitle();
+	selectWindow(imageTitle); 
+	run("Z Project...", "projection=[Sum Slices] all");
+		//Saving the MAX
+		saveAs("Tiff", SUM + "SUM" + title + ".tiff");
+		close();
+	SumProj = getTitle();
+
+	
+//Draw areas
+	selectWindow(SumProj);
+	run("Z Project...", "projection=[Sum Slices]");
+	SumSum = getTitle();
+	run("Enhance Contrast", "saturated=0.35");
+	run("Enhance Contrast", "saturated=0.35");
+	run("Enhance Contrast", "saturated=0.35");
+	setTool("polygon");
+	waitForUser("Select ROI");
+	run("Measure");
+			//Saving the results of Background subtration and Area	
+		    saveAs("Results", Polysomes + "Area" + title + ".csv");
+		    run("Clear Results");
+	roiManager("Add");
+	roiManager("Save", Polysomes + "Area" + title + ".zip");
+
+//Segment Nuclei
+	selectWindow(SumSum);
+	run("Subtract Background...", "rolling=80");
+	run("Smooth");
+	setAutoThreshold("Yen dark");
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
+	setForegroundColor(255, 255, 255);
+	n = roiManager("count");
+	for (i=0; i<n; i++) {
+		roiManager('select', i);
+		run("Make Inverse");
+		run("Fill", "stack");	  
+		}
+		//Saving Nuclei mask
+		saveAs("Tiff", Processed + "Nuclei " + title + ".tiff");
+		poly = getTitle();
+	
+//Segment Polysomes
+	selectWindow(MaxProj);
+	run("Subtract Background...", "rolling=5 stack");
+	run("Enhance Contrast...", "saturated=0.001 process_all use");
+	run("Smooth", "stack");
+	setAutoThreshold("MaxEntropy dark stack");
+	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	setForegroundColor(255, 255, 255);
+	n = roiManager("count");
+	for (i=0; i<n; i++) {
+		roiManager('select', i);
+		run("Make Inverse");
+		run("Fill", "stack");	  
+		}
+	run("Select None");
+	roiManager("reset");
+		//Saving polysome mask
+		saveAs("Tiff", Processed + "MASK" + title + ".tiff");
+		poly = getTitle();
+	selectWindow(poly);
+
+//Count Polysomes
+	run("Analyze Particles...", "size=0.10-Infinity display summarize add stack");
+		//Save Comets mask and results
+		saveAs("Text", Polysomes + "Count " + title + ".txt"); //MAYBE CRITICAL
+		saveAs("Results", Polysomes + "Results " + title + ".csv");
+		roiManager("Save", Polysomes + "PolyTracks " + title + ".zip");
+ run("Clear Results");
