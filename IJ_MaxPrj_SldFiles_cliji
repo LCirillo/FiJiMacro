@@ -1,0 +1,77 @@
+//This macro max project and save all objects in a .sld file
+//and save them as separate tiff files in a different folder
+//it requires the plugins Slidebook, clij and Bioformat. It will also return
+//a log file with the speed and the progresses
+
+
+input = getDirectory("RawData"); 
+list = getFileList(input); 
+output = getDirectory("Tiffs");
+
+
+run("Close All");
+print("\\Clear");
+run("CLIJ Macro Extensions", "cl_device=");
+setBatchMode(true); 
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+print("Process Started:");
+print(year + '/' + (month+1) + '/' + dayOfMonth + "_____" + hour + ':' + minute + ':' + second);
+time1 = getTime();
+for (i=0; i<list.length; i++)                                                          
+{
+    image = list[i];
+    path = input + image;
+    run("Bio-Formats Macro Extensions");
+    Ext.setId(path);
+    Ext.getCurrentFile(file);
+    Ext.getSeriesCount(seriesCount);
+   // run("Bio-Formats Importer", "open=&path autoscale color_mode=Default view=Hyperstack stack_order=XYCZT series_");
+   // title =getTitle();
+   // File.makeDirectory(title);                                          
+   // close();
+
+
+    for (s=1; s<=seriesCount; s++)                                                  
+    {
+    run("Bio-Formats Importer", "open=&path autoscale color_mode=Default view=Hyperstack stack_order=XYCZT series_"+s);  
+    run("CLIJ Macro Extensions", "cl_device=");
+	Ext.CLIJ_clear();
+	imageTitle=getTitle();
+	getDimensions(width, height, channels, slices, frames);
+	Stack.setChannel(1);
+	c=0;
+	for (c=1; c<channels+1; c++)  {
+		selectWindow(imageTitle);
+		Stack.setChannel(c);//selectWindow("C"+i+"-"+imageTitle);
+		for (f=0; f<frames; f++)  
+			{ selectWindow(imageTitle);
+			Stack.setFrame(f);
+			run("Duplicate...", "duplicate channels=c frames=f");
+			title = getTitle();
+			Ext.CLIJ_push(title);
+			Ext.CLIJ_maximumZProjection(title, "MAX_" + title);
+			Ext.CLIJ_pull("MAX_" + title);
+			Ext.CLIJ_clear();
+			selectWindow(title);
+			close();}	 
+	run("Images to Stack", "name=stack title=[] use");
+	rename("Stack_" + c);
+	selectWindow(imageTitle);
+	}
+	selectWindow(imageTitle);
+	close();
+	run("Concatenate...", "all_open");
+	run("Stack to Hyperstack...", "order=xytzc channels=2 slices=1 frames=frames display=Color");
+	saveAs("Tiff",  output + "MAX_" + imageTitle);
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	print(imageTitle + "    " + hour + ':' + minute + ':' + second);
+	run("Collect Garbage");
+	run("Close All");
+    }
+}
+setBatchMode(false);
+selectWindow("Log");
+print("Process Ended:");
+print(year + '/' + (month+1) + '/' + dayOfMonth + "_____" + hour + ':' + minute + ':' + second);
+IJ.log("3D projection took " + (getTime()-time1) + " msec");
+saveAs("Text", output + "Log_" + image + ".txt");
