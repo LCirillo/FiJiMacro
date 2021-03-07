@@ -1,0 +1,48 @@
+//This macro max project and save all objects in a .sld file
+//and save them as separate tiff files in a different folder
+//it requires the plugins Slidebook and Bioformat. It will also return
+//a log file with the speed and the progresses
+
+
+input = getDirectory("RawData"); 
+list = getFileList(input); 
+output = getDirectory("Tiffs");
+
+run("Close All");
+print("\\Clear");
+setBatchMode(true); 
+getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+print("Process Started:");
+print(year + '/' + (month+1) + '/' + dayOfMonth + "_____" + hour + ':' + minute + ':' + second);
+time1 = getTime();
+for (i=0; i<list.length; i++)                                                          
+{
+    image = list[i];
+    path = input + image;
+    run("Bio-Formats Macro Extensions");
+    Ext.setId(path);
+    Ext.getCurrentFile(file);
+    Ext.getSeriesCount(seriesCount);
+  //  run("Bio-Formats Importer", "open=&path autoscale color_mode=Default view=Hyperstack stack_order=XYCZT series_");
+  //  title =getTitle();
+  //  File.makeDirectory(title);                                          
+ //   close();
+
+    for (s=1; s<=seriesCount; s++)                                                  
+    {
+    run("Bio-Formats Importer", "open=&path autoscale color_mode=Default view=Hyperstack stack_order=XYCZT series_"+s);
+    imageTitle = getTitle();  
+    run("Z Project...", "projection=[Max Intensity] all");
+	saveAs("Tiff",  output + "MAX_" + imageTitle);
+	getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
+	print(imageTitle + "    " + hour + ':' + minute + ':' + second);
+	run("Collect Garbage");
+	run("Close All");
+    }
+}
+setBatchMode(false);
+selectWindow("Log");
+print("Process Ended:");
+print(year + '/' + (month+1) + '/' + dayOfMonth + "_____" + hour + ':' + minute + ':' + second);
+IJ.log("3D projection took " + (getTime()-time1) + " msec");
+saveAs("Text", output + "Log_" + image + ".txt");
