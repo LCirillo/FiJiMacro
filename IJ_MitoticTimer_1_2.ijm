@@ -119,9 +119,9 @@ for (MitoCell = 0; MitoCell < MitoticCells; MitoCell ++) {
             Dialog.addNumber("Metaphase:", 000);
             Dialog.addNumber("Anaphase:", 000);
             Dialog.show();
-            NEBD = (Dialog.getNumber())
-            Meta = (Dialog.getNumber())
-            Ana = (Dialog.getNumber())
+            NEBD = (Dialog.getNumber());
+            Meta = (Dialog.getNumber());
+            Ana = (Dialog.getNumber());
             NEBD_to_Meta = Meta - NEBD;
             NEBD_to_Ana = Ana - NEBD;
 
